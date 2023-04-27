@@ -19,7 +19,7 @@ pub async fn build_all(conf: &Config) -> Result<()> {
 
 /// Build the project. Returns true if the build was successful
 pub async fn build_proj(proj: &Arc<Project>) -> Result<bool> {
-    if proj.site.root_dir.exists() {
+    if proj.lib.is_some() && proj.site.root_dir.exists() {
         fs::rm_dir_content(&proj.site.root_dir).await.dot()?;
     }
     let changes = ChangeSet::all_changes();
