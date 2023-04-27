@@ -18,8 +18,14 @@ use tokio::task::JoinHandle;
 pub async fn spawn(proj: &Arc<Project>) -> Result<JoinHandle<()>> {
     let mut set: HashSet<Utf8PathBuf> = HashSet::from_iter(vec![]);
 
-    set.extend(proj.lib.src_paths.clone());
-    set.extend(proj.bin.src_paths.clone());
+    if let Some(lib) = &proj.lib {
+        set.extend(lib.src_paths.clone());
+    }
+
+    if let Some(bin) = &proj.bin {
+        set.extend(bin.src_paths.clone());
+    }
+
     set.insert(proj.js_dir.clone());
 
     if let Some(file) = &proj.style.file {
@@ -90,23 +96,27 @@ fn handle(watched: Watched, proj: Arc<Project>) {
         }
     }
 
-    let lib_rs = path.starts_with_any(&proj.lib.src_paths) && path.is_ext_any(&["rs"]);
-    let lib_js = path.starts_with(&proj.js_dir) && path.is_ext_any(&["js"]);
+    if let Some(lib) = &proj.lib {
+        let lib_rs = path.starts_with_any(&lib.src_paths) && path.is_ext_any(&["rs"]);
+        let lib_js = path.starts_with(&proj.js_dir) && path.is_ext_any(&["js"]);
 
-    if lib_rs || lib_js {
-        log::debug!(
-            "Notify lib source change {}",
-            GRAY.paint(watched.to_string())
-        );
-        changes.push(Change::LibSource);
+        if lib_rs || lib_js {
+            log::debug!(
+                "Notify lib source change {}",
+                GRAY.paint(watched.to_string())
+            );
+            changes.push(Change::LibSource);
+        }
     }
 
-    if path.starts_with_any(&proj.bin.src_paths) && path.is_ext_any(&["rs"]) {
-        log::debug!(
-            "Notify bin source change {}",
-            GRAY.paint(watched.to_string())
-        );
-        changes.push(Change::BinSource);
+    if let Some(bin) = &proj.bin {
+        if path.starts_with_any(&bin.src_paths) && path.is_ext_any(&["rs"]) {
+            log::debug!(
+                "Notify bin source change {}",
+                GRAY.paint(watched.to_string())
+            );
+            changes.push(Change::BinSource);
+        }
     }
 
     if let Some(file) = &proj.style.file {

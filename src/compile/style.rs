@@ -70,12 +70,16 @@ fn build_tailwind(proj: &Arc<Project>) -> JoinHandle<Result<Outcome<String>>> {
 }
 
 async fn build(proj: &Arc<Project>) -> Result<Outcome<Product>> {
+    use Outcome::*;
+    if proj.lib.is_none() {
+        return Ok(Outcome::Success(Product::None));
+    }
+
     let css_handle = build_sass(proj);
     let tw_handle = build_tailwind(proj);
     let css = css_handle.await??;
     let tw = tw_handle.await??;
 
-    use Outcome::*;
     let css = match (css, tw) {
         (Stopped, _) | (_, Stopped) => return Ok(Stopped),
         (Failed, _) | (_, Failed) => return Ok(Failed),

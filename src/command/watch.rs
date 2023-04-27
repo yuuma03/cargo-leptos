@@ -22,18 +22,15 @@ pub async fn watch(proj: &Arc<Project>) -> Result<()> {
         return Ok(());
     }
 
-    let view_macros = if proj.hot_reload {
-        // build initial set of view macros for patching
-        let view_macros = ViewMacros::new();
-        view_macros.update_from_paths(&proj.lib.src_paths)?;
-        Some(view_macros)
-    } else {
-        None
-    };
-
     let _watch = service::notify::spawn(proj).await?;
-    if let Some(view_macros) = view_macros {
-        let _patch = service::patch::spawn(proj, &view_macros).await?;
+
+    if proj.hot_reload {
+        if let Some(lib) = &proj.lib {
+            // build initial set of view macros for patching
+            let view_macros = ViewMacros::new();
+            view_macros.update_from_paths(&lib.src_paths)?;
+            let _patch = service::patch::spawn(proj, lib, &view_macros).await?;
+        }
     }
 
     service::serve::spawn(proj).await;

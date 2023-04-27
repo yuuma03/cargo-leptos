@@ -8,6 +8,7 @@ use crate::ext::sync::{wait_interruptible, CommandResult};
 use crate::service::site::SiteFile;
 use crate::signal::{Interrupt, Outcome, Product};
 use crate::{
+    config::LibPackage,
     ext::{
         anyhow::{Context, Result},
         exe::Exe,
@@ -26,6 +27,10 @@ pub async fn front(
     let proj = proj.clone();
     let changes = changes.clone();
     tokio::spawn(async move {
+        let Some(lib) = &proj.lib else {
+            return Ok(Outcome::Success(Product::None));
+        };
+
         if !changes.need_front_build() {
             log::trace!("Front no changes to rebuild");
             return Ok(Outcome::Success(Product::None));
@@ -33,7 +38,7 @@ pub async fn front(
 
         fs::create_dir_all(&proj.site.root_relative_pkg_dir()).await?;
 
-        let (envs, line, process) = front_cargo_process("build", true, &proj)?;
+        let (envs, line, process) = front_cargo_process("build", true, &proj, lib)?;
 
         match wait_interruptible("Cargo", process, Interrupt::subscribe_any()).await? {
             CommandResult::Interrupted => return Ok(Outcome::Stopped),
@@ -51,9 +56,10 @@ pub fn front_cargo_process(
     cmd: &str,
     wasm: bool,
     proj: &Project,
+    lib: &LibPackage,
 ) -> Result<(String, String, Child)> {
     let mut command = Command::new("cargo");
-    let (envs, line) = build_cargo_front_cmd(cmd, wasm, proj, &mut command);
+    let (envs, line) = build_cargo_front_cmd(cmd, wasm, proj, lib, &mut command);
     Ok((envs, line, command.spawn()?))
 }
 
@@ -61,11 +67,12 @@ pub fn build_cargo_front_cmd(
     cmd: &str,
     wasm: bool,
     proj: &Project,
+    lib: &LibPackage,
     command: &mut Command,
 ) -> (String, String) {
     let mut args = vec![
         cmd.to_string(),
-        format!("--package={}", proj.lib.name.as_str()),
+        format!("--package={}", lib.name.as_str()),
         "--lib".to_string(),
         "--target-dir=target/front".to_string(),
     ];
@@ -73,15 +80,15 @@ pub fn build_cargo_front_cmd(
         args.push("--target=wasm32-unknown-unknown".to_string());
     }
 
-    if !proj.lib.default_features {
+    if !lib.default_features {
         args.push("--no-default-features".to_string());
     }
 
-    if !proj.lib.features.is_empty() {
-        args.push(format!("--features={}", proj.lib.features.join(",")));
+    if !lib.features.is_empty() {
+        args.push(format!("--features={}", lib.features.join(",")));
     }
 
-    proj.lib.profile.add_to_args(&mut args);
+    lib.profile.add_to_args(&mut args);
 
     let envs = proj.to_envs();
 
@@ -97,7 +104,11 @@ pub fn build_cargo_front_cmd(
 }
 
 async fn bindgen(proj: &Project) -> Result<Outcome<Product>> {
-    let wasm_file = &proj.lib.wasm_file;
+    let Some(lib) = &proj.lib else {
+        return Ok(Outcome::Success(Product::None));
+    };
+
+    let wasm_file = &lib.wasm_file;
     let interrupt = Interrupt::subscribe_any();
 
     // see:
@@ -128,12 +139,12 @@ async fn bindgen(proj: &Project) -> Result<Outcome<Product>> {
 
     let wasm_changed = proj
         .site
-        .did_file_change(&proj.lib.wasm_file.as_site_file())
+        .did_file_change(&lib.wasm_file.as_site_file())
         .await
         .dot()?;
     js_changed |= proj
         .site
-        .updated_with(&proj.lib.js_file, bindgen.js().as_bytes())
+        .updated_with(&lib.js_file, bindgen.js().as_bytes())
         .await
         .dot()?;
     log::debug!("Front js changed: {js_changed}");

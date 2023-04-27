@@ -31,7 +31,11 @@ impl BinPackage {
         metadata: &Metadata,
         project: &ProjectDefinition,
         config: &ProjectConfig,
-    ) -> Result<Self> {
+    ) -> Result<Option<Self>> {
+        let Some(name) = project.bin_package.clone() else {
+            return Ok(None);
+        };
+
         let mut features = if !cli.bin_features.is_empty() {
             cli.bin_features.clone()
         } else if !config.bin_features.is_empty() {
@@ -43,7 +47,6 @@ impl BinPackage {
         features.extend(config.features.clone());
         features.extend(cli.features.clone());
 
-        let name = project.bin_package.clone();
         let packages = metadata.workspace_packages();
         let package = packages
             .iter()
@@ -101,7 +104,7 @@ impl BinPackage {
         } else {
             src_paths.push(rel_dir.join("src"));
         }
-        Ok(Self {
+        Ok(Some(Self {
             name,
             abs_dir,
             rel_dir,
@@ -112,7 +115,7 @@ impl BinPackage {
             src_paths,
             profile,
             target_triple: config.bin_target_triple.clone(),
-        })
+        }))
     }
 }
 

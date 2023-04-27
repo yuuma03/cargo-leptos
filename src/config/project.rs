@@ -1,10 +1,9 @@
 use crate::{
     config::lib_package::LibPackage,
     ext::{
-        anyhow::{bail, ensure, Result},
+        anyhow::{bail, Result},
         PackageExt, PathBufExt, PathExt,
     },
-    logger::GRAY,
     service::site::Site,
 };
 use camino::{Utf8Path, Utf8PathBuf};
@@ -25,8 +24,8 @@ pub struct Project {
     /// absolute path to the working dir
     pub working_dir: Utf8PathBuf,
     pub name: String,
-    pub lib: LibPackage,
-    pub bin: BinPackage,
+    pub lib: Option<LibPackage>,
+    pub bin: Option<BinPackage>,
     pub style: StyleConfig,
     pub watch: bool,
     pub release: bool,
@@ -69,8 +68,6 @@ impl Project {
                 config.output_name = project.name.to_string();
             }
 
-            let lib = LibPackage::resolve(cli, &metadata, &project, &config)?;
-
             let js_dir = config
                 .js_dir
                 .clone()
@@ -79,7 +76,7 @@ impl Project {
             let proj = Project {
                 working_dir: metadata.workspace_root.clone(),
                 name: project.name.clone(),
-                lib,
+                lib: LibPackage::resolve(cli, &metadata, &project, &config)?,
                 bin: BinPackage::resolve(cli, &metadata, &project, &config)?,
                 style: StyleConfig::new(&config)?,
                 watch,
@@ -95,7 +92,7 @@ impl Project {
 
         let projects_in_cwd = resolved
             .iter()
-            .filter(|p| p.bin.abs_dir.starts_with(&cwd) || p.lib.abs_dir.starts_with(&cwd))
+            .filter(|p| p.bin.as_ref().map_or(false, |bin| bin.abs_dir.starts_with(&cwd)) || p.lib.as_ref().map_or(false, |lib| lib.abs_dir.starts_with(&cwd)))
             .collect::<Vec<_>>();
 
         if projects_in_cwd.len() == 1 {
@@ -107,15 +104,22 @@ impl Project {
 
     /// env vars to use when running external command
     pub fn to_envs(&self) -> Vec<(&'static str, String)> {
-        let mut vec = vec![
-            ("LEPTOS_OUTPUT_NAME", self.lib.output_name.to_string()),
-            ("LEPTOS_SITE_ROOT", self.site.root_dir.to_string()),
-            ("LEPTOS_SITE_PKG_DIR", self.site.pkg_dir.to_string()),
-            ("LEPTOS_SITE_ADDR", self.site.addr.to_string()),
-            ("LEPTOS_RELOAD_PORT", self.site.reload.port().to_string()),
-            ("LEPTOS_LIB_DIR", self.lib.rel_dir.to_string()),
-            ("LEPTOS_BIN_DIR", self.bin.rel_dir.to_string()),
-        ];
+        let mut vec = vec![];
+        if let Some(lib) = &self.lib {
+            vec.extend([
+                ("LEPTOS_OUTPUT_NAME", lib.output_name.to_string()),
+                ("LEPTOS_SITE_ROOT", self.site.root_dir.to_string()),
+                ("LEPTOS_SITE_PKG_DIR", self.site.pkg_dir.to_string()),
+                ("LEPTOS_LIB_DIR", lib.rel_dir.to_string()),
+            ]);
+        }
+        if let Some(bin) = &self.bin {
+            vec.extend([
+                ("LEPTOS_SITE_ADDR", self.site.addr.to_string()),
+                ("LEPTOS_RELOAD_PORT", self.site.reload.port().to_string()),
+                ("LEPTOS_BIN_DIR", bin.rel_dir.to_string()),
+            ]);
+        }
         if self.watch {
             vec.push(("LEPTOS_WATCH", "ON".to_string()))
         }
@@ -201,8 +205,8 @@ impl ProjectConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectDefinition {
     name: String,
-    pub bin_package: String,
-    pub lib_package: String,
+    pub bin_package: Option<String>,
+    pub lib_package: Option<String>,
 }
 impl ProjectDefinition {
     fn from_workspace(
@@ -226,23 +230,14 @@ impl ProjectDefinition {
         dir: &Utf8Path,
     ) -> Result<(Self, ProjectConfig)> {
         let conf = ProjectConfig::parse(dir, metadata)?;
-
-        ensure!(
-            package.cdylib_target().is_some(),
-            "Cargo.toml has leptos metadata but is missing a cdylib library target. {}",
-            GRAY.paint(package.manifest_path.as_str())
-        );
-        ensure!(
-            package.has_bin_target(),
-            "Cargo.toml has leptos metadata but is missing a bin target. {}",
-            GRAY.paint(package.manifest_path.as_str())
-        );
+        let has_bin_target = package.has_bin_target();
+        let has_lib_target = package.cdylib_target().is_some();
 
         Ok((
             ProjectDefinition {
                 name: package.name.to_string(),
-                bin_package: package.name.to_string(),
-                lib_package: package.name.to_string(),
+                bin_package: has_bin_target.then_some(package.name.to_string()),
+                lib_package: has_lib_target.then_some(package.name.to_string()),
             },
             conf,
         ))

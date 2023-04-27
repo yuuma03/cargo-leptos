@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    config::Project,
+    config::{Project, BinPackage},
     ext::{anyhow::Result, append_str_to_filename, determine_pdb_filename, fs},
     logger::GRAY,
     signal::{Interrupt, ReloadSignal, ServerRestart},
@@ -17,8 +17,14 @@ pub async fn spawn(proj: &Arc<Project>) -> JoinHandle<Result<()>> {
     let mut int = Interrupt::subscribe_shutdown();
     let proj = proj.clone();
     let mut change = ServerRestart::subscribe();
+
     tokio::spawn(async move {
-        let mut server = ServerProcess::start_new(&proj).await?;
+        let Some(bin) = &proj.bin else {
+            return Ok(());
+        };
+
+        let mut server = ServerProcess::start_new(&proj, bin).await?;
+
         loop {
             select! {
               res = change.recv() => {
@@ -43,16 +49,16 @@ struct ServerProcess {
 }
 
 impl ServerProcess {
-    fn new(proj: &Project) -> Self {
+    fn new(proj: &Project, bin: &BinPackage) -> Self {
         Self {
             process: None,
             envs: proj.to_envs(),
-            binary: proj.bin.exe_file.clone(),
+            binary: bin.exe_file.clone(),
         }
     }
 
-    async fn start_new(proj: &Project) -> Result<Self> {
-        let mut me = Self::new(proj);
+    async fn start_new(proj: &Project, bin: &BinPackage) -> Result<Self> {
+        let mut me = Self::new(proj, bin);
         me.start().await?;
         Ok(me)
     }

@@ -2,6 +2,7 @@ use crate::config::Project;
 use crate::ext::anyhow::Result;
 use crate::signal::{Interrupt, ReloadSignal};
 use crate::{
+    config::LibPackage,
     ext::{remove_nested, PathBufExt},
     logger::GRAY,
 };
@@ -16,11 +17,11 @@ use tokio::task::JoinHandle;
 
 use super::notify::Watched;
 
-pub async fn spawn(proj: &Arc<Project>, view_macros: &ViewMacros) -> Result<JoinHandle<()>> {
+pub async fn spawn(proj: &Arc<Project>, lib: &LibPackage, view_macros: &ViewMacros) -> Result<JoinHandle<()>> {
     let view_macros = view_macros.to_owned();
     let mut set: HashSet<Utf8PathBuf> = HashSet::from_iter(vec![]);
 
-    set.extend(proj.lib.src_paths.clone());
+    set.extend(lib.src_paths.clone());
 
     let paths = remove_nested(set.into_iter());
 
@@ -75,12 +76,14 @@ fn handle(watched: Watched, proj: Arc<Project>, view_macros: ViewMacros) {
         return
     };
 
-    if path.starts_with_any(&proj.lib.src_paths) && path.is_ext_any(&["rs"]) {
-        // Check if it's possible to patch
-        let patches = view_macros.patch(path);
-        if let Ok(Some(patch)) = patches {
-            log::debug!("Patching view.");
-            ReloadSignal::send_view_patches(&patch);
+    if let Some(lib) = &proj.lib {
+        if path.starts_with_any(&lib.src_paths) && path.is_ext_any(&["rs"]) {
+            // Check if it's possible to patch
+            let patches = view_macros.patch(path);
+            if let Ok(Some(patch)) = patches {
+                log::debug!("Patching view.");
+                ReloadSignal::send_view_patches(&patch);
+            }
         }
     }
 }

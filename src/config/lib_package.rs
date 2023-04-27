@@ -31,8 +31,11 @@ impl LibPackage {
         metadata: &Metadata,
         project: &ProjectDefinition,
         config: &ProjectConfig,
-    ) -> Result<Self> {
-        let name = project.lib_package.clone();
+    ) -> Result<Option<Self>> {
+        let Some(name) = project.lib_package.clone() else {
+            return Ok(None);
+        };
+
         let packages = metadata.workspace_packages();
         let output_name = if !config.output_name.is_empty() {
             config.output_name.clone()
@@ -92,7 +95,7 @@ impl LibPackage {
         } else {
             src_deps.push(rel_dir.join("src"));
         }
-        Ok(Self {
+        Ok(Some(Self {
             name,
             abs_dir,
             rel_dir,
@@ -103,7 +106,7 @@ impl LibPackage {
             output_name,
             src_paths: src_deps,
             profile,
-        })
+        }))
     }
 }
 
