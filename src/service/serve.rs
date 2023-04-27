@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    config::{Project, BinPackage},
+    config::{BinPackage, Project},
     ext::{anyhow::Result, append_str_to_filename, determine_pdb_filename, fs},
     logger::GRAY,
     signal::{Interrupt, ReloadSignal, ServerRestart},

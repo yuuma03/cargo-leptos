@@ -20,9 +20,9 @@ use crate::ext::{
     MetadataExt,
 };
 use anyhow::bail;
+pub use bin_package::BinPackage;
 use camino::{Utf8Path, Utf8PathBuf};
 use cargo_metadata::Metadata;
-pub use bin_package::BinPackage;
 pub use lib_package::LibPackage;
 pub use profile::Profile;
 pub use project::{Project, ProjectConfig};

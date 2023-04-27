@@ -17,7 +17,11 @@ use tokio::task::JoinHandle;
 
 use super::notify::Watched;
 
-pub async fn spawn(proj: &Arc<Project>, lib: &LibPackage, view_macros: &ViewMacros) -> Result<JoinHandle<()>> {
+pub async fn spawn(
+    proj: &Arc<Project>,
+    lib: &LibPackage,
+    view_macros: &ViewMacros,
+) -> Result<JoinHandle<()>> {
     let view_macros = view_macros.to_owned();
     let mut set: HashSet<Utf8PathBuf> = HashSet::from_iter(vec![]);
 

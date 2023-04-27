@@ -92,7 +92,14 @@ impl Project {
 
         let projects_in_cwd = resolved
             .iter()
-            .filter(|p| p.bin.as_ref().map_or(false, |bin| bin.abs_dir.starts_with(&cwd)) || p.lib.as_ref().map_or(false, |lib| lib.abs_dir.starts_with(&cwd)))
+            .filter(|p| {
+                p.bin
+                    .as_ref()
+                    .map_or(false, |bin| bin.abs_dir.starts_with(&cwd))
+                    || p.lib
+                        .as_ref()
+                        .map_or(false, |lib| lib.abs_dir.starts_with(&cwd))
+            })
             .collect::<Vec<_>>();
 
         if projects_in_cwd.len() == 1 {
