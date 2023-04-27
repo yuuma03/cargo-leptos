@@ -111,11 +111,10 @@ impl Project {
 
     /// env vars to use when running external command
     pub fn to_envs(&self) -> Vec<(&'static str, String)> {
-        let mut vec = vec![];
+        let mut vec = vec![("LEPTOS_SITE_ROOT", self.site.root_dir.to_string())];
         if let Some(lib) = &self.lib {
             vec.extend([
                 ("LEPTOS_OUTPUT_NAME", lib.output_name.to_string()),
-                ("LEPTOS_SITE_ROOT", self.site.root_dir.to_string()),
                 ("LEPTOS_SITE_PKG_DIR", self.site.pkg_dir.to_string()),
                 ("LEPTOS_LIB_DIR", lib.rel_dir.to_string()),
             ]);
