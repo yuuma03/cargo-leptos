@@ -51,11 +51,7 @@ pub async fn front(
     })
 }
 
-pub fn front_cargo_process(
-    cmd: &str,
-    wasm: bool,
-    lib: &LibPackage,
-) -> Result<(String, Child)> {
+pub fn front_cargo_process(cmd: &str, wasm: bool, lib: &LibPackage) -> Result<(String, Child)> {
     let mut command = Command::new("cargo");
     let line = build_cargo_front_cmd(cmd, wasm, lib, &mut command);
     Ok((line, command.spawn()?))

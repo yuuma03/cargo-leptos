@@ -53,20 +53,13 @@ pub async fn server(
     })
 }
 
-pub fn server_cargo_process(
-    cmd: &str,
-    bin: &BinPackage,
-) -> Result<(String, Child)> {
+pub fn server_cargo_process(cmd: &str, bin: &BinPackage) -> Result<(String, Child)> {
     let mut command = Command::new("cargo");
     let line = build_cargo_server_cmd(cmd, bin, &mut command);
     Ok((line, command.spawn()?))
 }
 
-pub fn build_cargo_server_cmd(
-    cmd: &str,
-    bin: &BinPackage,
-    command: &mut Command,
-) -> String {
+pub fn build_cargo_server_cmd(cmd: &str, bin: &BinPackage, command: &mut Command) -> String {
     let mut args = vec![cmd.to_string(), format!("--package={}", bin.name.as_str())];
     if cmd != "test" {
         args.push(format!("--bin={}", bin.target))
