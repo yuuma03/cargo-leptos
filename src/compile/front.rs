@@ -38,14 +38,13 @@ pub async fn front(
 
         fs::create_dir_all(&proj.site.root_relative_pkg_dir()).await?;
 
-        let (envs, line, process) = front_cargo_process("build", true, &proj, lib)?;
+        let (line, process) = front_cargo_process("build", true, lib)?;
 
         match wait_interruptible("Cargo", process, Interrupt::subscribe_any()).await? {
             CommandResult::Interrupted => return Ok(Outcome::Stopped),
             CommandResult::Failure(_) => return Ok(Outcome::Failed),
             _ => {}
         }
-        log::debug!("Cargo envs: {}", GRAY.paint(envs));
         log::info!("Cargo finished {}", GRAY.paint(line));
 
         bindgen(&proj).await.dot()
@@ -55,21 +54,19 @@ pub async fn front(
 pub fn front_cargo_process(
     cmd: &str,
     wasm: bool,
-    proj: &Project,
     lib: &LibPackage,
-) -> Result<(String, String, Child)> {
+) -> Result<(String, Child)> {
     let mut command = Command::new("cargo");
-    let (envs, line) = build_cargo_front_cmd(cmd, wasm, proj, lib, &mut command);
-    Ok((envs, line, command.spawn()?))
+    let line = build_cargo_front_cmd(cmd, wasm, lib, &mut command);
+    Ok((line, command.spawn()?))
 }
 
 pub fn build_cargo_front_cmd(
     cmd: &str,
     wasm: bool,
-    proj: &Project,
     lib: &LibPackage,
     command: &mut Command,
-) -> (String, String) {
+) -> String {
     let mut args = vec![
         cmd.to_string(),
         format!("--package={}", lib.name.as_str()),
@@ -89,18 +86,9 @@ pub fn build_cargo_front_cmd(
     }
 
     lib.profile.add_to_args(&mut args);
+    command.args(&args);
 
-    let envs = proj.to_envs();
-
-    let envs_str = envs
-        .iter()
-        .map(|(name, val)| format!("{name}={val}"))
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    command.args(&args).envs(envs);
-    let line = format!("cargo {}", args.join(" "));
-    (envs_str, line)
+    format!("cargo {}", args.join(" "))
 }
 
 async fn bindgen(proj: &Project) -> Result<Outcome<Product>> {

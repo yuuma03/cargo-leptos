@@ -28,11 +28,10 @@ pub async fn server(
             return Ok(Outcome::Success(Product::None));
         }
 
-        let (envs, line, process) = server_cargo_process("build", &proj, bin)?;
+        let (line, process) = server_cargo_process("build", bin)?;
 
         match wait_interruptible("Cargo", process, Interrupt::subscribe_any()).await? {
             CommandResult::Success(_) => {
-                log::debug!("Cargo envs: {}", GRAY.paint(envs));
                 log::info!("Cargo finished {}", GRAY.paint(line));
 
                 let changed = proj
@@ -56,20 +55,18 @@ pub async fn server(
 
 pub fn server_cargo_process(
     cmd: &str,
-    proj: &Project,
     bin: &BinPackage,
-) -> Result<(String, String, Child)> {
+) -> Result<(String, Child)> {
     let mut command = Command::new("cargo");
-    let (envs, line) = build_cargo_server_cmd(cmd, proj, bin, &mut command);
-    Ok((envs, line, command.spawn()?))
+    let line = build_cargo_server_cmd(cmd, bin, &mut command);
+    Ok((line, command.spawn()?))
 }
 
 pub fn build_cargo_server_cmd(
     cmd: &str,
-    proj: &Project,
     bin: &BinPackage,
     command: &mut Command,
-) -> (String, String) {
+) -> String {
     let mut args = vec![cmd.to_string(), format!("--package={}", bin.name.as_str())];
     if cmd != "test" {
         args.push(format!("--bin={}", bin.target))
@@ -88,16 +85,7 @@ pub fn build_cargo_server_cmd(
     }
 
     bin.profile.add_to_args(&mut args);
+    command.args(&args);
 
-    let envs = proj.to_envs();
-
-    let envs_str = envs
-        .iter()
-        .map(|(name, val)| format!("{name}={val}"))
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    command.args(&args).envs(envs);
-    let line = format!("cargo {}", args.join(" "));
-    (envs_str, line)
+    format!("cargo {}", args.join(" "))
 }
