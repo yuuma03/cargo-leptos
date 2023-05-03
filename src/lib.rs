@@ -51,7 +51,7 @@ pub async fn run(args: Cli) -> Result<()> {
     match args.command {
         New(_) => panic!(),
         Build(_) => command::build_all(&config).await,
-        Serve(_) => command::serve(&config.current_project()?).await,
+        Serve(_) => command::serve(&config).await,
         Test(_) => command::test_all(&config).await,
         EndToEnd(_) => command::end2end_all(&config).await,
         Watch(_) => command::watch(&config.current_project()?).await,

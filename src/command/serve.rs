@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
-use crate::config::Project;
-use crate::ext::anyhow::{Context, Result};
+use crate::config::Config;
+use crate::ext::anyhow::Result;
 use crate::service::serve;
 
-pub async fn serve(proj: &Arc<Project>) -> Result<()> {
-    if !super::build::build_proj(proj).await.dot()? {
-        return Ok(());
-    }
-    let server = serve::spawn(proj).await;
+pub async fn serve(conf: &Config) -> Result<()> {
+    super::build::build_all(conf).await?;
+    let default_run = conf.current_project()?;
+    let server = serve::spawn(&default_run).await;
     server.await??;
     Ok(())
 }
