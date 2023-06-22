@@ -76,8 +76,9 @@ pub async fn tailwind_process(cmd: &str, tw_conf: &TailwindConfig) -> Result<(St
     let input_file = canonicalize(tw_conf.input_file.as_str())?;
     let input_file = input_file.to_string_lossy();
 
-    let config_file_path = canonicalize(tw_conf.config_file.as_str())?;
-    let config_file = config_file_path.clone().to_string_lossy();
+    let mut config_file_path = canonicalize(tw_conf.config_file.as_str())?;
+    let config_file = config_file_path.clone();
+    let config_file = config_file.to_string_lossy();
 
     let args: Vec<&str> = vec!["--input", &input_file, "--config", &config_file];
     let line = format!("{} {}", cmd, args.join(" "));
