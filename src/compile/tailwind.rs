@@ -72,20 +72,20 @@ async fn create_default_tailwind_config(tw_conf: &TailwindConfig) -> Result<()> 
 
 pub async fn tailwind_process(cmd: &str, tw_conf: &TailwindConfig) -> Result<(String, Command)> {
     let tailwind = Exe::Tailwind.get().await.dot()?;
-    let path = canonicalize(format!("{}/../", tw_conf.config_file.as_str()))?;
 
     let input_file = canonicalize(tw_conf.input_file.as_str())?;
     let input_file = input_file.to_string_lossy();
 
-    let config_file = canonicalize(tw_conf.config_file.as_str())?;
-    let config_file = config_file.to_string_lossy();
+    let config_file_path = canonicalize(tw_conf.config_file.as_str())?;
+    let config_file = config_file_path.clone().to_string_lossy();
 
     let args: Vec<&str> = vec!["--input", &input_file, "--config", &config_file];
     let line = format!("{} {}", cmd, args.join(" "));
     let mut command = Command::new(tailwind);
 
+    config_file_path.pop();
     command.args(args);
-    command.current_dir(path);
+    command.current_dir(config_file_path.to_string_lossy());
 
     Ok((line, command))
 }
