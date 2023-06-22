@@ -85,7 +85,7 @@ pub async fn tailwind_process(cmd: &str, tw_conf: &TailwindConfig) -> Result<(St
 
     config_file_path.pop();
     command.args(args);
-    command.current_dir(config_file_path.to_string_lossy());
+    command.current_dir(&config_file_path.to_string_lossy());
 
     Ok((line, command))
 }
